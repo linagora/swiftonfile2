@@ -1,6 +1,6 @@
 [gerrit]
-host=review.openstack.org
+host=review.opendev.org
 port=29418
-project=openstack/swiftonfile.git
+project=x/swiftonfile.git
 defaultbranch=master
 defaultremote=gerrit
