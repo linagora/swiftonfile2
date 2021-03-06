@@ -29,26 +29,28 @@ class TestPkgInfo(unittest.TestCase):
     """
 
     def test_constructor(self):
-        pi = sof.PkgInfo('a', 'b', 'c', 'd')
-        assert pi.canonical_version == 'a'
-        assert pi.name == 'c'
-        self.assertEqual(pi.release, 'b')
-        assert pi.final == 'd'
+        pi = sof.PkgInfo("a", "b", "c", "d")
+        assert pi.canonical_version == "a"
+        assert pi.name == "c"
+        self.assertEqual(pi.release, "b")
+        assert pi.final == "d"
 
     def test_pretty_version(self):
-        pi = sof.PkgInfo('a', 'b', 'c', False)
-        assert pi.pretty_version == 'a-dev'
-        pi = sof.PkgInfo('a', 'b', 'c', True)
-        assert pi.pretty_version == 'a'
+        pi = sof.PkgInfo("a", "b", "c", False)
+        assert pi.pretty_version == "a-dev"
+        pi = sof.PkgInfo("a", "b", "c", True)
+        assert pi.pretty_version == "a"
 
     def test_save_config(self):
-        pi = sof.PkgInfo('a', 'b', 'c', 'd')
+        pi = sof.PkgInfo("a", "b", "c", "d")
         td = tempfile.mkdtemp()
         try:
-            sc = os.path.join(td, 'saved_config.txt')
+            sc = os.path.join(td, "saved_config.txt")
             pi.save_config(sc)
-            exp = 'NAME=c\nVERSION=a\nRELEASE=b\n'
-            contents = file(sc, 'r').read()
+            exp = "NAME=c\nVERSION=a\nRELEASE=b\n"
+            with open(sc, "r") as f:
+                contents = f.read()
+
             assert contents == exp
         finally:
             shutil.rmtree(td)

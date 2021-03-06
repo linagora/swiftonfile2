@@ -99,11 +99,6 @@ export SWIFT_TEST_CONFIG_FILE=/etc/swift/test.conf
 mkdir functional_tests_result > /dev/null 2>&1
 
 print "Runnning functional tests"
-nosetests -v --exe \
-	--with-xunit \
-	--xunit-file functional_tests_result/swiftonfile-generic-functional-TC-report.xml \
-    --with-html-output \
-    --html-out-file functional_tests_result/swiftonfile-generic-functional-result.html \
-    test/functional || fail "Functional tests failed"
+nosetests -v --exe test/functional || fail "Functional tests failed"
 cleanup
 exit 0

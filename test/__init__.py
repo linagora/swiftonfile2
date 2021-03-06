@@ -17,7 +17,21 @@
 # The code below enables nosetests to work with i18n _() blocks
 from __future__ import print_function
 import sys
+from contextlib import contextmanager
+
 import os
+from six import reraise
+from eventlet.green import socket
+
+# make unittests pass on all locale
+import swift
+from swift.common.utils import readconf
+
+
+# Work around what seems to be a Python bug.
+# c.f. https://bugs.launchpad.net/swift/+bug/820185.
+import logging
+
 try:
     from unittest.util import safe_repr
 except ImportError:
@@ -31,18 +45,24 @@ except ImportError:
             result = object.__repr__(obj)
         if not short or len(result) < _MAX_LENGTH:
             return result
-        return result[:_MAX_LENGTH] + ' [truncated]...'
-
-# make unittests pass on all locale
-import swift
-setattr(swift, 'gettext_', lambda x: x)
-
-from swift.common.utils import readconf
+        return result[:_MAX_LENGTH] + " [truncated]..."
 
 
-# Work around what seems to be a Python bug.
-# c.f. https://bugs.launchpad.net/swift/+bug/820185.
-import logging
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    module="cryptography|OpenSSL",
+    message=(
+        "Python 2 is no longer supported by the Python core team. "
+        "Support for it is now deprecated in cryptography, "
+        "and will be removed in a future release."
+    ),
+)
+
+
+setattr(swift, "gettext_", lambda x: x)
+
 logging.raiseExceptions = False
 
 
@@ -57,18 +77,56 @@ def get_config(section_name=None, defaults=None):
     if defaults is not None:
         config.update(defaults)
 
-    config_file = os.environ.get('SWIFT_TEST_CONFIG_FILE',
-                                 '/etc/swift/test.conf')
+    config_file = os.environ.get("SWIFT_TEST_CONFIG_FILE", "/etc/swift/test.conf")
     try:
         config = readconf(config_file, section_name)
-    except SystemExit:
+    except IOError:
         if not os.path.exists(config_file):
-            print('Unable to read test config %s - file not found'
-                  % config_file, file=sys.stderr)
+            print(
+                "Unable to read test config %s - file not found" % config_file,
+                file=sys.stderr,
+            )
         elif not os.access(config_file, os.R_OK):
-            print('Unable to read test config %s - permission denied'
-                  % config_file, file=sys.stderr)
-        else:
-            print('Unable to read test config %s - section %s not found'
-                  % (config_file, section_name), file=sys.stderr)
+            print(
+                "Unable to read test config %s - permission denied" % config_file,
+                file=sys.stderr,
+            )
+    except ValueError as e:
+        print(e)
     return config
+
+
+def listen_zero():
+    """
+    The eventlet.listen() always sets SO_REUSEPORT, so when called with
+    ("localhost",0), instead of returning unique ports it can return the
+    same port twice. That causes our tests to fail, so open-code it here
+    without SO_REUSEPORT.
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.listen(50)
+    return sock
+
+
+@contextmanager
+def annotate_failure(msg):
+    """
+    Catch AssertionError and annotate it with a message. Useful when making
+    assertions in a loop where the message can indicate the loop index or
+    richer context about the failure.
+
+    :param msg: A message to be prefixed to the AssertionError message.
+    """
+    try:
+        yield
+    except AssertionError as err:
+        err_typ, err_val, err_tb = sys.exc_info()
+        if err_val.args:
+            msg = "%s Failed with %s" % (msg, err_val.args[0])
+            err_val.args = (msg,) + err_val.args[1:]
+        else:
+            # workaround for some IDE's raising custom AssertionErrors
+            err_val = "%s Failed with %s" % (msg, err)
+            err_typ = AssertionError
+        reraise(err_typ, err_val, err_tb)

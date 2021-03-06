@@ -20,6 +20,7 @@ import errno
 import unittest
 from nose import SkipTest
 from mock import patch, Mock
+import mock
 from time import sleep
 from tempfile import mkdtemp, mkstemp
 from swiftonfile.swift.common import fs_utils as fs
@@ -44,7 +45,7 @@ def mock_os_mkdir_makedirs_edquot(path):
 
 
 class TestFsUtils(unittest.TestCase):
-    """ Tests for common.fs_utils """
+    """Tests for common.fs_utils"""
 
     def test_do_walk(self):
         # create directory structure
@@ -53,10 +54,8 @@ class TestFsUtils(unittest.TestCase):
             tmpdirs = []
             tmpfiles = []
             for i in range(5):
-                tmpdirs.append(
-                    mkdtemp(dir=tmpparent).rsplit(os.path.sep, 1)[1])
-                tmpfiles.append(
-                    mkstemp(dir=tmpparent)[1].rsplit(os.path.sep, 1)[1])
+                tmpdirs.append(mkdtemp(dir=tmpparent).rsplit(os.path.sep, 1)[1])
+                tmpfiles.append(mkstemp(dir=tmpparent)[1].rsplit(os.path.sep, 1)[1])
 
                 for path, dirnames, filenames in fs.do_walk(tmpparent):
                     assert path == tmpparent
@@ -69,19 +68,18 @@ class TestFsUtils(unittest.TestCase):
     def test_do_ismount_path_does_not_exist(self):
         tmpdir = mkdtemp()
         try:
-            assert False == fs.do_ismount(os.path.join(tmpdir, 'bar'))
+            assert not fs.do_ismount(os.path.join(tmpdir, "bar"))
         finally:
             shutil.rmtree(tmpdir)
 
     def test_do_ismount_path_not_mount(self):
         tmpdir = mkdtemp()
         try:
-            assert False == fs.do_ismount(tmpdir)
+            assert not fs.do_ismount(tmpdir)
         finally:
             shutil.rmtree(tmpdir)
 
     def test_do_ismount_path_error(self):
-
         def _mock_os_lstat(path):
             raise OSError(13, "foo")
 
@@ -102,15 +100,14 @@ class TestFsUtils(unittest.TestCase):
         try:
             link = os.path.join(tmpdir, "tmp")
             os.symlink("/tmp", link)
-            assert False == fs.do_ismount(link)
+            assert not fs.do_ismount(link)
         finally:
             shutil.rmtree(tmpdir)
 
     def test_do_ismount_path_is_root(self):
-        assert True == fs.do_ismount('/')
+        assert fs.do_ismount("/")
 
     def test_do_ismount_parent_path_error(self):
-
         _os_lstat = os.lstat
 
         def _mock_os_lstat(path):
@@ -132,10 +129,9 @@ class TestFsUtils(unittest.TestCase):
             shutil.rmtree(tmpdir)
 
     def test_do_ismount_successes_dev(self):
-
         _os_lstat = os.lstat
 
-        class MockStat(object):
+        class MockStat:
             def __init__(self, mode, dev, ino):
                 self.st_mode = mode
                 self.st_dev = dev
@@ -144,8 +140,7 @@ class TestFsUtils(unittest.TestCase):
         def _mock_os_lstat(path):
             if path.endswith(".."):
                 parent = _os_lstat(path)
-                return MockStat(parent.st_mode, parent.st_dev + 1,
-                                parent.st_ino)
+                return MockStat(parent.st_mode, parent.st_dev + 1, parent.st_ino)
             else:
                 return _os_lstat(path)
 
@@ -162,10 +157,9 @@ class TestFsUtils(unittest.TestCase):
             shutil.rmtree(tmpdir)
 
     def test_do_ismount_successes_ino(self):
-
         _os_lstat = os.lstat
 
-        class MockStat(object):
+        class MockStat:
             def __init__(self, mode, dev, ino):
                 self.st_mode = mode
                 self.st_dev = dev
@@ -178,8 +172,7 @@ class TestFsUtils(unittest.TestCase):
                 parent_path = os.path.join(path, "..")
                 child = _os_lstat(path)
                 parent = _os_lstat(parent_path)
-                return MockStat(child.st_mode, parent.st_ino,
-                                child.st_dev)
+                return MockStat(child.st_mode, parent.st_ino, child.st_dev)
 
         tmpdir = mkdtemp()
         try:
@@ -198,7 +191,7 @@ class TestFsUtils(unittest.TestCase):
         try:
             fd = fs.do_open(tmpfile, os.O_RDONLY)
             try:
-                os.write(fd, 'test')
+                os.write(fd, b"test")
             except OSError:
                 pass
             else:
@@ -211,8 +204,7 @@ class TestFsUtils(unittest.TestCase):
 
     def test_do_open_err_int_mode(self):
         try:
-            fs.do_open(os.path.join('/tmp', str(random.random())),
-                       os.O_RDONLY)
+            fs.do_open(os.path.join("/tmp", str(random.random())), os.O_RDONLY)
         except SwiftOnFileSystemOSError:
             pass
         else:
@@ -221,7 +213,7 @@ class TestFsUtils(unittest.TestCase):
     def test_do_write(self):
         fd, tmpfile = mkstemp()
         try:
-            cnt = fs.do_write(fd, "test")
+            cnt = fs.do_write(fd, b"test")
             assert cnt == len("test")
         finally:
             os.close(fd)
@@ -232,7 +224,7 @@ class TestFsUtils(unittest.TestCase):
         try:
             fd1 = os.open(tmpfile, os.O_RDONLY)
             try:
-                fs.do_write(fd1, "test")
+                fs.do_write(fd1, b"test")
             except SwiftOnFileSystemOSError:
                 pass
             else:
@@ -246,14 +238,13 @@ class TestFsUtils(unittest.TestCase):
             os.remove(tmpfile)
 
     def test_do_write_DiskFileNoSpace(self):
-
         def mock_os_write_enospc(fd, msg):
             raise OSError(errno.ENOSPC, os.strerror(errno.ENOSPC))
 
         def mock_os_write_edquot(fd, msg):
             raise OSError(errno.EDQUOT, os.strerror(errno.EDQUOT))
 
-        with patch('os.write', mock_os_write_enospc):
+        with patch("os.write", mock_os_write_enospc):
             try:
                 fs.do_write(9, "blah")
             except DiskFileNoSpace:
@@ -261,7 +252,7 @@ class TestFsUtils(unittest.TestCase):
             else:
                 self.fail("Expected DiskFileNoSpace exception")
 
-        with patch('os.write', mock_os_write_edquot):
+        with patch("os.write", mock_os_write_edquot):
             try:
                 fs.do_write(9, "blah")
             except DiskFileNoSpace:
@@ -271,7 +262,7 @@ class TestFsUtils(unittest.TestCase):
 
     def test_do_mkdir(self):
         try:
-            path = os.path.join('/tmp', str(random.random()))
+            path = os.path.join("/tmp", str(random.random()))
             fs.do_mkdir(path)
             self.assertTrue(os.path.exists(path))
             self.assertRaises(OSError, fs.do_mkdir, path)
@@ -280,15 +271,14 @@ class TestFsUtils(unittest.TestCase):
 
     def test_do_mkdir_err(self):
         try:
-            path = os.path.join('/tmp', str(random.random()),
-                                str(random.random()))
+            path = os.path.join("/tmp", str(random.random()), str(random.random()))
             fs.do_mkdir(path)
         except OSError as err:
             self.assertEqual(err.errno, errno.ENOENT)
         else:
             self.fail("OSError with errno.ENOENT expected")
 
-        with patch('os.mkdir', mock_os_mkdir_makedirs_enospc):
+        with patch("os.mkdir", mock_os_mkdir_makedirs_enospc):
             try:
                 fs.do_mkdir("blah")
             except OSError as err:
@@ -296,7 +286,7 @@ class TestFsUtils(unittest.TestCase):
             else:
                 self.fail("Expected OSError with errno.ENOSPC exception")
 
-        with patch('os.mkdir', mock_os_mkdir_makedirs_edquot):
+        with patch("os.mkdir", mock_os_mkdir_makedirs_edquot):
             try:
                 fs.do_mkdir("blah")
             except OSError as err:
@@ -339,17 +329,16 @@ class TestFsUtils(unittest.TestCase):
             os.rmdir(tmpdir)
 
     def test_do_stat_enoent(self):
-        res = fs.do_stat(os.path.join('/tmp', str(random.random())))
+        res = fs.do_stat(os.path.join("/tmp", str(random.random())))
         assert res is None
 
     def test_do_stat_err(self):
-
         def mock_os_stat_eacces(path):
             raise OSError(errno.EACCES, os.strerror(errno.EACCES))
 
         try:
-            with patch('os.stat', mock_os_stat_eacces):
-                fs.do_stat('/tmp')
+            with patch("os.stat", mock_os_stat_eacces):
+                fs.do_stat("/tmp")
         except SwiftOnFileSystemOSError:
             pass
         else:
@@ -365,8 +354,8 @@ class TestFsUtils(unittest.TestCase):
                 raise OSError(errno.EIO, os.strerror(errno.EIO))
             return _os_stat(path)
 
-        with patch('os.stat', mock_os_stat_eio):
-            fs.do_stat('/tmp') is not None
+        with patch("os.stat", mock_os_stat_eio):
+            fs.do_stat("/tmp") is not None
 
     def test_do_stat_eio_twice(self):
         count = [0]
@@ -378,17 +367,16 @@ class TestFsUtils(unittest.TestCase):
                 raise OSError(errno.EIO, os.strerror(errno.EIO))
             return _os_stat(path)
 
-        with patch('os.stat', mock_os_stat_eio):
-            fs.do_stat('/tmp') is not None
+        with patch("os.stat", mock_os_stat_eio):
+            fs.do_stat("/tmp") is not None
 
     def test_do_stat_eio_ten(self):
-
         def mock_os_stat_eio(path):
             raise OSError(errno.EIO, os.strerror(errno.EIO))
 
         try:
-            with patch('os.stat', mock_os_stat_eio):
-                fs.do_stat('/tmp')
+            with patch("os.stat", mock_os_stat_eio):
+                fs.do_stat("/tmp")
         except SwiftOnFileSystemOSError:
             pass
         else:
@@ -399,7 +387,7 @@ class TestFsUtils(unittest.TestCase):
         try:
             fs.do_close(fd)
             try:
-                os.write(fd, "test")
+                os.write(fd, b"test")
             except OSError:
                 pass
             else:
@@ -422,12 +410,11 @@ class TestFsUtils(unittest.TestCase):
             os.remove(tmpfile)
 
     def test_do_close_err_ENOSPC(self):
-
         def _mock_os_close_enospc(fd):
             raise OSError(errno.ENOSPC, os.strerror(errno.ENOSPC))
 
         fd, tmpfile = mkstemp()
-        with patch('os.close', _mock_os_close_enospc):
+        with patch("os.close", _mock_os_close_enospc):
             self.assertRaises(DiskFileNoSpace, fs.do_close, fd)
 
     def test_do_unlink(self):
@@ -435,7 +422,7 @@ class TestFsUtils(unittest.TestCase):
         try:
             assert fs.do_unlink(tmpfile) is None
             assert not os.path.exists(tmpfile)
-            res = fs.do_unlink(os.path.join('/tmp', str(random.random())))
+            res = fs.do_unlink(os.path.join("/tmp", str(random.random())))
             assert res is None
         finally:
             os.close(fd)
@@ -447,14 +434,14 @@ class TestFsUtils(unittest.TestCase):
         except SwiftOnFileSystemOSError:
             pass
         else:
-            self.fail('SwiftOnFileSystemOSError expected')
+            self.fail("SwiftOnFileSystemOSError expected")
         finally:
             os.rmdir(tmpdir)
 
     def test_do_rename(self):
         srcpath = mkdtemp()
         try:
-            destpath = os.path.join('/tmp', str(random.random()))
+            destpath = os.path.join("/tmp", str(random.random()))
             fs.do_rename(srcpath, destpath)
             assert not os.path.exists(srcpath)
             assert os.path.exists(destpath)
@@ -463,8 +450,8 @@ class TestFsUtils(unittest.TestCase):
 
     def test_do_rename_err(self):
         try:
-            srcpath = os.path.join('/tmp', str(random.random()))
-            destpath = os.path.join('/tmp', str(random.random()))
+            srcpath = os.path.join("/tmp", str(random.random()))
+            destpath = os.path.join("/tmp", str(random.random()))
             fs.do_rename(srcpath, destpath)
         except SwiftOnFileSystemOSError:
             pass
@@ -508,8 +495,7 @@ class TestFsUtils(unittest.TestCase):
                     fs.do_chown(subdir, 20000, 20000)
                 except SwiftOnFileSystemOSError as ex:
                     if ex.errno != errno.EPERM:
-                        self.fail(
-                            "Expected SwiftOnFileSystemOSError(errno=EPERM)")
+                        self.fail("Expected SwiftOnFileSystemOSError(errno=EPERM)")
                 else:
                     self.fail("Expected SwiftOnFileSystemOSError")
         finally:
@@ -527,8 +513,7 @@ class TestFsUtils(unittest.TestCase):
                     fs.do_chown(tmpfile, 20000, 20000)
                 except SwiftOnFileSystemOSError as ex:
                     if ex.errno != errno.EPERM:
-                        self.fail(
-                            "Expected SwiftOnFileSystemOSError(errno=EPERM")
+                        self.fail("Expected SwiftOnFileSystemOSError(errno=EPERM")
                 else:
                     self.fail("Expected SwiftOnFileSystemOSError")
         finally:
@@ -537,12 +522,17 @@ class TestFsUtils(unittest.TestCase):
 
     def test_chown_file_err(self):
         try:
-            fs.do_chown(os.path.join('/tmp', str(random.random())),
-                        20000, 20000)
+            fs.do_chown(os.path.join("/tmp", str(random.random())), 20000, 20000)
         except SwiftOnFileSystemOSError:
             pass
         else:
             self.fail("Expected SwiftOnFileSystemOSError")
+
+    def test_do_fchown(self):
+        with patch("swiftonfile.swift.common.fs_utils.os.fchown") as fchown:
+            fd = Mock()
+            fs.do_fchown(fd, 100, 100)
+            fchown.assert_called_with(fd, 100, 100)
 
     def test_fchown(self):
         tmpdir = mkdtemp()
@@ -556,8 +546,7 @@ class TestFsUtils(unittest.TestCase):
                     fs.do_fchown(fd, 20000, 20000)
                 except SwiftOnFileSystemOSError as ex:
                     if ex.errno != errno.EPERM:
-                        self.fail(
-                            "Expected SwiftOnFileSystemOSError(errno=EPERM)")
+                        self.fail("Expected SwiftOnFileSystemOSError(errno=EPERM)")
                 else:
                     self.fail("Expected SwiftOnFileSystemOSError")
         finally:
@@ -577,8 +566,7 @@ class TestFsUtils(unittest.TestCase):
                     fs.do_fchown(fd_rd, 20000, 20000)
                 except SwiftOnFileSystemOSError as ex:
                     if ex.errno != errno.EPERM:
-                        self.fail(
-                            "Expected SwiftOnFileSystemOSError(errno=EPERM)")
+                        self.fail("Expected SwiftOnFileSystemOSError(errno=EPERM)")
                 else:
                     self.fail("Expected SwiftOnFileSystemOSError")
         finally:
@@ -591,12 +579,11 @@ class TestFsUtils(unittest.TestCase):
         try:
             fd, tmpfile = mkstemp(dir=tmpdir)
             try:
-                os.write(fd, 'test')
-                with patch('os.fsync', mock_os_fsync):
+                os.write(fd, b"test")
+                with patch("os.fsync", mock_os_fsync):
                     assert fs.do_fsync(fd) is None
             except SwiftOnFileSystemOSError as ose:
-                self.fail('Opening a temporary file failed with %s' %
-                          ose.strerror)
+                self.fail("Opening a temporary file failed with %s" % ose.strerror)
             else:
                 os.close(fd)
         finally:
@@ -606,8 +593,8 @@ class TestFsUtils(unittest.TestCase):
         tmpdir = mkdtemp()
         try:
             fd, tmpfile = mkstemp(dir=tmpdir)
-            os.write(fd, 'test')
-            with patch('os.fsync', mock_os_fsync):
+            os.write(fd, b"test")
+            with patch("os.fsync", mock_os_fsync):
                 assert fs.do_fsync(fd) is None
             os.close(fd)
             try:
@@ -624,12 +611,11 @@ class TestFsUtils(unittest.TestCase):
         try:
             fd, tmpfile = mkstemp(dir=tmpdir)
             try:
-                os.write(fd, 'test')
-                with patch('os.fdatasync', mock_os_fdatasync):
+                os.write(fd, b"test")
+                with patch("os.fdatasync", mock_os_fdatasync):
                     assert fs.do_fdatasync(fd) is None
             except SwiftOnFileSystemOSError as ose:
-                self.fail('Opening a temporary file failed with %s' %
-                          ose.strerror)
+                self.fail("Opening a temporary file failed with %s" % ose.strerror)
             else:
                 os.close(fd)
         finally:
@@ -639,8 +625,8 @@ class TestFsUtils(unittest.TestCase):
         tmpdir = mkdtemp()
         try:
             fd, tmpfile = mkstemp(dir=tmpdir)
-            os.write(fd, 'test')
-            with patch('os.fdatasync', mock_os_fdatasync):
+            os.write(fd, b"test")
+            with patch("os.fdatasync", mock_os_fdatasync):
                 assert fs.do_fdatasync(fd) is None
             os.close(fd)
             try:
@@ -671,6 +657,26 @@ class TestFsUtils(unittest.TestCase):
         result = fs.get_filename_from_fd("blah", True)
         self.assertEqual(result, None)
 
+    def test_get_filename_from_fd_2(self):
+        tmpdir = mkdtemp()
+        try:
+            fd, tmpfile = mkstemp(dir=tmpdir)
+            with mock.patch.object(fs, "do_stat", return_value=None):
+                with mock.patch.object(fs, "do_fstat", return_value=None):
+                    assert not fs.get_filename_from_fd(fd, True)
+
+            with mock.patch.object(
+                fs, "do_stat", return_value=mock.MagicMock(**{"st_ino": 1, "st_dev": 1})
+            ):
+                with mock.patch.object(
+                    fs,
+                    "do_fstat",
+                    return_value=mock.MagicMock(**{"st_ino": 2, "st_dev": 2}),
+                ):
+                    assert not fs.get_filename_from_fd(fd, True)
+        finally:
+            shutil.rmtree(tmpdir)
+
     def test_static_var(self):
         @fs.static_var("counter", 0)
         def test_func():
@@ -697,8 +703,9 @@ class TestFsUtils(unittest.TestCase):
 
         # We check if logging.error was called exactly once even though
         # do_log_rl was called 3 times.
-        _mock.assert_called_once_with('[PID:' + str(pid) + '][RateLimitedLog;'
-                                      'Count:3] Hello %s', 'world')
+        _mock.assert_called_once_with(
+            "[PID:" + str(pid) + "][RateLimitedLog;" "Count:3] Hello %s", "world"
+        )
 
     def test_do_log_rl_err(self):
         _mock = Mock()
@@ -706,5 +713,6 @@ class TestFsUtils(unittest.TestCase):
         sleep(1.1)
         with patch("logging.error", _mock):
             fs.do_log_rl("Hello %s", "world", log_level="blah")
-        _mock.assert_called_once_with('[PID:' + str(pid) + '][RateLimitedLog;'
-                                      'Count:1] Hello %s', 'world')
+        _mock.assert_called_once_with(
+            "[PID:" + str(pid) + "][RateLimitedLog;" "Count:1] Hello %s", "world"
+        )

@@ -10,3 +10,4 @@ functional_tests_result
 .tox
 pycscope.*
 cscope.*
+.venv
