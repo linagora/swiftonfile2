@@ -1,5 +1,3 @@
-[![Build Status](https://travis-ci.org/swiftonfile/swiftonfile.svg?branch=master)](https://travis-ci.org/swiftonfile/swiftonfile)
-
 # Swift-on-File 2
 
 Swift-on-File is a Swift Object Server implementation that enables users to
@@ -46,9 +44,9 @@ GlusterFS and GPFS are good examples of Filesystems that work well with Swift-on
 Both provide a posix interface, global namespace, scalability, data replication
 and support for extended attributes.
 
-Currently, files added over a file interface (e.g., native GlusterFS), do not show
-up in container listings, still those files would be accessible over Swift's REST
-interface with a GET request. We are working to provide a solution to this limitation.
+Since SwiftOnFile2, files added over a file interface (e.g., native GlusterFS), will show
+up in container listings, and those files would be accessible over Swift's REST
+interface with a GET request.
 
 There is also subtle but very important difference in the implementation of
 [last write wins](doc/markdown/last_write_wins.md) behaviour when compared to
@@ -56,8 +54,8 @@ OpenStack Swift.
 
 Because Swift-On-File relies on the data replication support of the filesystem the Swift
 Object replicator process does not have any role for containers using the Swift-on-File
-storage policy.  This means that Swift geo replication is not available to objects in
-in containers using the Swift-on-File storage policy.  Multi-site replication for these
+storage policy. This means that Swift geo replication is not available to objects in
+in containers using the Swift-on-File storage policy. Multi-site replication for these
 objects must be provided by the filesystem.
 
 Future plans includes adding support for Filesystems without extended attributes,
@@ -71,10 +69,18 @@ Also see the presentation given at the Atlanta Openstack Summit: [Breaking the M
 The Atlanta presentation slides can be found [here](http://lpabon.github.io/openstack-summit-2014).
 
 Join us in contributing to the project. Feel free to file bugs, help with documentation
-or work directly on the code. You can file bugs or blueprints on [launchpad](https://launchpad.net/swiftonfile)
+or work directly on the code. You can file bugs directly on github.
 
-or find us in the #swiftonfile channel on Freenode.
+## History
+SwiftOnFile is hosted on OpenDev [here](https://opendev.org/x/swiftonfile).
+The project is dead for several years. We created SwiftOnFile 2 to show the major update.
+We didn't contribute to the original project since maintainers were not respondings to issues and PR for
+several years.
+This repository is the last up to date SwiftOnFile. We did a major update to support Victoria version
+and Python 3.
 
 # Guides to get started:
 1. [Quick Start Guide with XFS/GlusterFS](doc/markdown/quick_start_guide.md)
-2. [Developer Guide](doc/markdown/dev_guide.md)
+2. [Swift on File configuration](doc/markdown/sof_configuration.md)
+3. [Watcher configuration](doc/markdown/watcher_configuration.md)
+4. [Developer Guide](doc/markdown/dev_guide.md)
