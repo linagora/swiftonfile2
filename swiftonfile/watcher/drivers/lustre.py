@@ -60,6 +60,11 @@ class LustreWatcher(GenericWatcher):
         self.changelog_quantity = int(
             conf.get("watcher_lustre_changelog_quantity", CHANGELOG_QUANTITY_DEFAULT)
         )
+        # Used to compute account path
+        self.reseller_prefix = [
+            x.strip()
+            for x in conf.get("watcher_lustre_reseller_prefix", "AUTH").split(",")
+        ]
 
     def get_mdt(self):
         mnt_point = path.join(self.node_folder, self.fs_name)
@@ -143,6 +148,7 @@ class LustreWatcher(GenericWatcher):
         return stdout.decode().strip()
 
     def parent_path_to_container_path(self, parent_path):
+        parent_path = self.parent_path_to_account_path(parent_path)
         dirs = parent_path.strip("/").split("/")
 
         if len(dirs) < 2:
@@ -153,6 +159,13 @@ class LustreWatcher(GenericWatcher):
             subdirectory = path.join(*dirs[2:])
 
         return path.join(dirs[0], dirs[1]), subdirectory
+
+    def parent_path_to_account_path(self, parent_path):
+        for prefix in self.reseller_prefix:
+            if prefix in parent_path:
+                parent_path = parent_path[parent_path.index(prefix):]
+
+        return parent_path
 
     async def fid_to_container_path(self, fid):
         try:

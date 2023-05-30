@@ -229,6 +229,21 @@ class TestLustreWatcher(aiounittest.AsyncTestCase):
                 else:
                     self.fail("Should have raised LustreError")
 
+    def test_parent_path_to_account_path(self):
+        with get_watcher() as watcher:
+            r = watcher.parent_path_to_account_path("account/container")
+            assert r == "account/container"
+
+            r = watcher.parent_path_to_account_path(
+                "account/container/subfolder1/"
+            )
+            assert r == "account/container/subfolder1/"
+
+            r = watcher.parent_path_to_account_path(
+                "/ccc/store0/swift/lustre/AUTH_root/tutu"
+            )
+            assert r == "AUTH_root/tutu"
+
     def test_parent_path_to_container_path(self):
         with get_watcher() as watcher:
             r, _ = watcher.parent_path_to_container_path("account/container")
@@ -598,8 +613,10 @@ class TestLustreWatcher(aiounittest.AsyncTestCase):
         with get_watcher() as watcher:
             # Check first iter
             with mock.patch("swiftonfile.watcher.generic.GenericWatcher.get_data"):
-                await watcher.get_data(0)
-                assert watcher.last_id == 0
+                with mock.patch.object(watcher, "get_changelog_data"):
+                    with mock.patch.object(watcher, "changelog_clear"):
+                        await watcher.get_data(0)
+                        assert watcher.last_id == 0
 
             # check others
             with mock.patch.object(watcher, "get_changelog_data") as mock_data:
